@@ -68,7 +68,7 @@ struct resp_appendix {
 
     static std::shared_ptr<resp_appendix> deserialize(buffer& buf) {
         buffer_serializer bs(buf);
-        auto res = cs_new<resp_appendix>();
+        auto res = std::make_shared<resp_appendix>();
 
         uint8_t cur_ver = bs.get_u8();
         if (cur_ver != 0) {
