@@ -197,7 +197,7 @@ raft_server::raft_server(context* ctx, raft_server::init_options const& opt)
     for (uint64_t i = std::max(sm_commit_index_ + 1, log_store_->start_index());
          i < log_store_->next_slot();
          ++i) {
-        if (auto entry = log_store_->entry_at(i);
+        if (auto const entry = log_store_->entry_at(i);
             entry->get_val_type() == log_val_type::conf) {
             p_in("detect a configuration change "
                  "that is not committed yet at index %" PRIu64 "",
@@ -726,7 +726,7 @@ void raft_server::reset_peer_info() {
     auto const srv_cnt = c_config->get_servers().size();
     p_db("servers: %zu\n", srv_cnt);
     if (srv_cnt > 1) {
-        std::shared_ptr<srv_config> my_srv_config = c_config->get_server(id_);
+        auto my_srv_config = c_config->get_server(id_);
         if (!my_srv_config) {
             // It means that this node was removed, and then
             // added again (it shouldn't happen though).
@@ -1507,19 +1507,22 @@ uint64_t raft_server::term_for_log(uint64_t log_idx) {
 
     std::shared_ptr<snapshot> last_snapshot(state_machine_->last_snapshot());
     if (!last_snapshot || log_idx != last_snapshot->get_last_log_idx()) {
-        p_er("bad log_idx %" PRIu64 " for retrieving the term value, "
+        static timer_helper bad_log_timer(1000000, true);
+        int log_lv = bad_log_timer.timeout_and_reset() ? L_ERROR : L_TRACE;
+
+        p_lv(log_lv,
+             "bad log_idx %" PRIu64 " for retrieving the term value, "
              "will ignore this log req",
              log_idx);
         if (last_snapshot) {
-            p_er("last snapshot %p, log_idx %" PRIu64 ", snapshot last_log_idx %" PRIu64
+            p_lv(log_lv,
+                 "last snapshot %p, log_idx %" PRIu64 ", snapshot last_log_idx %" PRIu64
                  "\n",
                  (void*)last_snapshot.get(),
                  log_idx,
                  last_snapshot->get_last_log_idx());
         }
-        p_er("log_store_->start_index() %" PRIu64, log_store_->start_index());
-        // ctx_->state_mgr_->system_exit(raft_err::N19_bad_log_idx_for_term);
-        //::exit(-1);
+        p_lv(log_lv, "log_store_->start_index() %" PRIu64, log_store_->start_index());
         return 0L;
     }
 
@@ -1575,7 +1578,7 @@ std::shared_ptr<srv_config> raft_server::get_srv_config(int32_t srv_id) const {
 
 void raft_server::get_srv_config_all(
     std::vector<std::shared_ptr<srv_config>>& configs_out) const {
-    std::shared_ptr<cluster_config> c_conf = get_config();
+    auto c_conf = get_config();
     auto& servers = c_conf->get_servers();
     for (auto& entry: servers)
         configs_out.push_back(entry);

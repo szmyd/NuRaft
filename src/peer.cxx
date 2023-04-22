@@ -80,14 +80,15 @@ void peer::handle_rpc_result(std::shared_ptr<peer> myself,
                              std::shared_ptr<rpc_result>& pending_result,
                              std::shared_ptr<resp_msg>& resp,
                              std::shared_ptr<rpc_exception>& err) {
-    std::unordered_set<int> msg_types_to_free({msg_type::append_entries_request,
-                                               msg_type::install_snapshot_request,
-                                               msg_type::request_vote_request,
-                                               msg_type::pre_vote_request,
-                                               msg_type::leave_cluster_request,
-                                               msg_type::custom_notification_request,
-                                               msg_type::reconnect_request,
-                                               msg_type::priority_change_request});
+    static std::unordered_set<int> const msg_types_to_free(
+        {msg_type::append_entries_request,
+         msg_type::install_snapshot_request,
+         msg_type::request_vote_request,
+         msg_type::pre_vote_request,
+         msg_type::leave_cluster_request,
+         msg_type::custom_notification_request,
+         msg_type::reconnect_request,
+         msg_type::priority_change_request});
 
     if (abandoned_) {
         p_in("peer %d has been shut down, ignore response.", config_->get_id());

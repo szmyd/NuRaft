@@ -26,7 +26,7 @@ std::shared_ptr<buffer> cluster_config::serialize() const {
     size_t sz = 2 * sz_uint64_t + sz_int + sz_byte;
     std::vector<std::shared_ptr<buffer>> srv_buffs;
     for (auto it = servers_.cbegin(); it != servers_.cend(); ++it) {
-        std::shared_ptr<buffer> buf = (*it)->serialize();
+        auto buf = (*it)->serialize();
         srv_buffs.push_back(buf);
         sz += buf->size();
     }

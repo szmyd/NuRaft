@@ -481,8 +481,8 @@ void raft_server::rm_srv_from_cluster(int32_t srv_id) {
         cur_conf = uncommitted_config_;
     }
 
-    std::shared_ptr<cluster_config> new_conf = std::make_shared<cluster_config>(
-        log_store_->next_slot(), cur_conf->get_log_idx());
+    auto new_conf = std::make_shared<cluster_config>(log_store_->next_slot(),
+                                                     cur_conf->get_log_idx());
     for (auto it = cur_conf->get_servers().cbegin(); it != cur_conf->get_servers().cend();
          ++it) {
         if ((*it)->get_id() != srv_id) {
