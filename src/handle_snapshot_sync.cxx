@@ -243,7 +243,8 @@ std::shared_ptr<req_msg> raft_server::create_sync_snapshot_req(std::shared_ptr<p
     return req;
 }
 
-std::shared_ptr<resp_msg> raft_server::handle_install_snapshot_req(req_msg& req) {
+std::shared_ptr<resp_msg> raft_server::handle_install_snapshot_req(req_msg& req,
+                                                                   std::unique_lock<std::recursive_mutex>& guard) {
     if (req.get_term() == state_->get_term() && !catching_up_) {
         if (role_ == srv_role::candidate) {
             become_follower();
@@ -303,7 +304,7 @@ std::shared_ptr<resp_msg> raft_server::handle_install_snapshot_req(req_msg& req)
         return resp;
     }
 
-    if (handle_snapshot_sync_req(*sync_req)) {
+    if (handle_snapshot_sync_req(*sync_req, guard)) {
         if (sync_req->get_snapshot().get_type() == snapshot::raw_binary) {
             // LCOV_EXCL_START
             // Raw binary: add received byte to offset.
@@ -462,7 +463,7 @@ void raft_server::handle_install_snapshot_resp_new_member(resp_msg& resp) {
     sync_log_to_new_srv(srv_to_join_->get_next_log_idx());
 }
 
-bool raft_server::handle_snapshot_sync_req(snapshot_sync_req& req) {
+bool raft_server::handle_snapshot_sync_req(snapshot_sync_req& req, std::unique_lock<std::recursive_mutex>& guard) {
     try {
         // if offset == 0, it is the first object.
         bool is_first_obj = (req.get_offset()) ? false : true;
@@ -523,14 +524,14 @@ bool raft_server::handle_snapshot_sync_req(snapshot_sync_req& req) {
             // let's pause committing in backgroud so it doesn't access logs
             // while they are being compacted
             pause_state_machine_exeuction();
+            guard.unlock();
             size_t wait_count = 0;
             while (!wait_for_state_machine_pause(500)) {
                 p_in(
                     "waiting for state machine pause before applying snapshot: count %zu",
                     ++wait_count);
             }
-            while (sm_commit_exec_in_progress_)
-                std::this_thread::sleep_for(std::chrono::milliseconds(500));
+            guard.lock();
 
             struct ExecAutoResume {
                 explicit ExecAutoResume(std::function<void()> func)

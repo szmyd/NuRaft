@@ -629,12 +629,27 @@ void raft_server::on_snapshot_completed(std::shared_ptr<snapshot>& s,
                 uint64_t compact_upto =
                     new_snp->get_last_log_idx() - (uint64_t)params->reserved_log_items_;
                 p_in("log_store_ compact upto %" PRIu64 "", compact_upto);
-                log_store_->compact(compact_upto);
+
+                cmd_result<bool>::handler_type handler =
+                    (cmd_result<bool>::handler_type)std::bind(
+                        &raft_server::on_log_compacted,
+                        this,
+                        compact_upto,
+                        std::placeholders::_1,
+                        std::placeholders::_2);
+                log_store_->compact(compact_upto, handler);
             }
         }
     } while (false);
 
     snp_in_progress_.store(false);
+}
+
+void raft_server::on_log_compacted(uint64_t log_idx,
+                                   bool result,
+                                   std::shared_ptr<std::exception>& err)
+{
+    // Place holder. Just move forward.
 }
 
 void raft_server::reconfigure(const std::shared_ptr<cluster_config>& new_config) {

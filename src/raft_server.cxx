@@ -687,7 +687,15 @@ std::shared_ptr<resp_msg> raft_server::process_req(req_msg& req,
 
     std::shared_ptr<resp_msg> resp;
     if (req.get_type() == msg_type::append_entries_request) {
+        {
+            cb_func::Param param(id_, leader_, req.get_src(), &req);
+            ctx_->cb_func_.call(cb_func::ReceivedAppendEntriesReq, &param);
+        }
         resp = handle_append_entries(req);
+        {
+            cb_func::Param param(id_, leader_, req.get_src(), resp.get());
+            ctx_->cb_func_.call(cb_func::SentAppendEntriesResp, &param);
+        }
 
     } else if (req.get_type() == msg_type::request_vote_request) {
         resp = handle_vote_req(req);
@@ -705,7 +713,7 @@ std::shared_ptr<resp_msg> raft_server::process_req(req_msg& req,
 
     } else {
         // extended requests
-        resp = handle_ext_msg(req);
+        resp = handle_ext_msg(req, guard);
     }
 
     if (resp) {
@@ -842,6 +850,10 @@ void raft_server::handle_peer_resp(std::shared_ptr<resp_msg>& resp,
         break;
 
     case msg_type::append_entries_response:
+        {
+            cb_func::Param param(id_, leader_, resp->get_src(), resp.get());
+            ctx_->cb_func_.call(cb_func::ReceivedAppendEntriesResp, &param);
+        }
         handle_append_entries_resp(*resp);
         break;
 
@@ -1350,7 +1362,7 @@ bool raft_server::update_term(uint64_t term) {
     return false;
 }
 
-std::shared_ptr<resp_msg> raft_server::handle_ext_msg(req_msg& req) {
+std::shared_ptr<resp_msg> raft_server::handle_ext_msg(req_msg& req, std::unique_lock<std::recursive_mutex>& guard) {
     switch (req.get_type()) {
     case msg_type::add_server_request:
         return handle_add_srv_req(req);
@@ -1368,7 +1380,7 @@ std::shared_ptr<resp_msg> raft_server::handle_ext_msg(req_msg& req) {
         return handle_leave_cluster_req(req);
 
     case msg_type::install_snapshot_request:
-        return handle_install_snapshot_req(req);
+        return handle_install_snapshot_req(req, guard);
 
     case msg_type::reconnect_request:
         return handle_reconnect_req(req);
