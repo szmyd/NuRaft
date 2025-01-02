@@ -129,6 +129,10 @@ void peer::handle_rpc_result( ptr<peer> myself,
             //   `set_free()` should be protected by `rpc_protector_`, otherwise
             //   it may free the peer even though new RPC client is already created.
             if ( msg_types_to_free.find(req->get_type()) != msg_types_to_free.end() ) {
+                p_in( "resp of req %d -> %d, type %s",
+                      req->get_src(),
+                      req->get_dst(),
+                      msg_type_to_string( req->get_type() ).c_str());
                 set_free();
             }
         }
@@ -167,6 +171,11 @@ void peer::handle_rpc_result( ptr<peer> myself,
                 rpc_.reset();
                 if ( msg_types_to_free.find(req->get_type()) !=
                          msg_types_to_free.end() ) {
+                    p_in( "resp of req %d -> %d, type %s, %s",
+                          req->get_src(),
+                          req->get_dst(),
+                          msg_type_to_string( req->get_type() ).c_str(),
+                          (err) ? err->what() : "OK" );
                     set_free();
                 }
 
@@ -224,7 +233,7 @@ bool peer::recreate_rpc(ptr<srv_config>& config,
         reconn_backoff_.set_duration_ms(new_duration_ms);
 
         rpc_ = factory->create_client(config->get_endpoint());
-        p_tr("%p reconnect peer %d", rpc_.get(), config_->get_id());
+        p_in("%p reconnect peer %d", rpc_.get(), config_->get_id());
 
         // WARNING:
         //   A reconnection attempt should be treated as an activity,

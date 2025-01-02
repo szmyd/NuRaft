@@ -163,6 +163,10 @@ void raft_server::request_prevote() {
                             term_for_log(log_store_->next_slot() - 1),
                             log_store_->next_slot() - 1,
                             quick_commit_index_.load() ) );
+        p_in( "send %s to server %d with term %" PRIu64 "",
+              msg_type_to_string(req->get_type()).c_str(),
+              it->second->get_id(),
+              state_->get_term() );
         if (pp->make_busy()) {
             pp->send_req(pp, req, resp_handler_);
         } else {
@@ -276,7 +280,7 @@ void raft_server::request_vote(bool force_vote) {
             // Ship it.
             req->log_entries().push_back(fv_msg_le);
         }
-        p_db( "send %s to server %d with term %" PRIu64 "",
+        p_in( "send %s to server %d with term %" PRIu64 "",
               msg_type_to_string(req->get_type()).c_str(),
               it->second->get_id(),
               state_->get_term() );
